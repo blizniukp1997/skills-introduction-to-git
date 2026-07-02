@@ -1,0 +1,12 @@
+{
+  "name": "stack-overflown",
+  "version": "1.0.0",
+  "description": "Stack Overflown - A Dev-Themed Puzzle Game",
+  "scripts": {
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

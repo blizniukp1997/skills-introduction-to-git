@@ -71,3 +71,7 @@ const ERROR_PATTERNS = [
     ],
   },
 ];
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { ERROR_PATTERNS };
+}

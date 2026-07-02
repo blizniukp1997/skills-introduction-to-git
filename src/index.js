@@ -1,3 +1,8 @@
+// Load patterns when running in Node.js (browser loads via <script> tag)
+if (typeof require !== "undefined" && typeof ERROR_PATTERNS === "undefined") {
+  var { ERROR_PATTERNS } = require("./patterns");
+}
+
 // Game constants
 const COLS = 10;
 const ROWS = 20;
@@ -356,4 +361,63 @@ function endGame() {
 }
 
 // Start the game when page loads
-window.addEventListener("load", init);
+if (typeof window !== "undefined") {
+  window.addEventListener("load", init);
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    COLS,
+    ROWS,
+    BLOCK_SIZE,
+    PATTERN_SIZE,
+    COLORS,
+    SHAPES,
+    checkCollision,
+    lockPiece,
+    rotate,
+    moveLeft,
+    moveRight,
+    moveDown,
+    hardDrop,
+    matchesPattern,
+    clearPattern,
+    checkPatternMatch,
+    togglePause,
+    spawnPiece,
+    endGame,
+    handleKeyPress,
+    init,
+    gameLoop,
+    draw,
+    drawBlock,
+    drawPiece,
+    drawTargetPattern,
+    setNewTargetPattern,
+    updateScore,
+    getState: () => ({
+      board,
+      currentPiece,
+      currentX,
+      currentY,
+      score,
+      gameOver,
+      isPaused,
+      targetPattern,
+    }),
+    setState: (state) => {
+      if (state.board !== undefined) board = state.board;
+      if (state.currentPiece !== undefined) currentPiece = state.currentPiece;
+      if (state.currentX !== undefined) currentX = state.currentX;
+      if (state.currentY !== undefined) currentY = state.currentY;
+      if (state.score !== undefined) score = state.score;
+      if (state.gameOver !== undefined) gameOver = state.gameOver;
+      if (state.isPaused !== undefined) isPaused = state.isPaused;
+      if (state.targetPattern !== undefined) targetPattern = state.targetPattern;
+      if (state.canvas !== undefined) canvas = state.canvas;
+      if (state.ctx !== undefined) ctx = state.ctx;
+      if (state.patternCanvas !== undefined) patternCanvas = state.patternCanvas;
+      if (state.patternCtx !== undefined) patternCtx = state.patternCtx;
+    },
+  };
+}

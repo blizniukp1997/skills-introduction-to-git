@@ -10,17 +10,9 @@ BRANCH_NAME=$(git branch --show-current)
 REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
 MODIFIED_FILES=$(git show --pretty=format: --name-only HEAD | jq -R . | jq -s .)
 
-# Get total commit count on branch
-DEFAULT_BRANCH=$(git branch --sort=committerdate --format='%(committerdate:short) %(refname:short)' | head -n 1 | cut -d' ' -f2)
-if [ "$BRANCH_NAME" != "$DEFAULT_BRANCH" ]; then
-  BRANCH_COMMIT_COUNT=$(git rev-list --count ${DEFAULT_BRANCH}..${BRANCH_NAME})
-  BRANCH_COMMIT_MESSAGES=$(git log ${DEFAULT_BRANCH}..${BRANCH_NAME} --pretty=format:'%h%x1f%s' | jq -R -s -c 'split("\n") | map(select(length > 0)) | map(split("\u001f") | {id: .[0], message: .[1]})')
-  # echo "Total commits on branch '${BRANCH_NAME}' since '${DEFAULT_BRANCH}': ${BRANCH_COMMIT_COUNT}"
-else
-  BRANCH_COMMIT_COUNT=$(git rev-list --count HEAD)
-  BRANCH_COMMIT_MESSAGES=$(git log --pretty=format:'%h%x1f%s' | jq -R -s -c 'split("\n") | map(select(length > 0)) | map(split("\u001f") | {id: .[0], message: .[1]})')
-  # echo "Total commits on branch '${DEFAULT_BRANCH}': ${BRANCH_COMMIT_COUNT}"
-fi
+# Collect branch commit count and messages via shared utility
+MONITOR_DIR="/home/vscode/.vscode-remote/data/Machine/exercise-monitor"
+eval "$("$MONITOR_DIR/collect-branch-info.sh")"
 
 # Build JSON payload
 PAYLOAD=$(jq -n \
@@ -49,9 +41,4 @@ PAYLOAD=$(jq -n \
     }
   }')
 
-# Send repository dispatch event
-curl -X POST \
-  -H "Accept: application/vnd.github.v3+json" \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  "https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches" \
-  -d "$PAYLOAD" 2>/dev/null || echo "Failed to send repository dispatch event"
+"$MONITOR_DIR/send-dispatch.sh" "post-commit" "$PAYLOAD"

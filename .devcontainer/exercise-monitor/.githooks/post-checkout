@@ -1,6 +1,13 @@
 #!/bin/bash
 
+LOG_FILE="/workspaces/exercise-monitor.log"
+
 echo "Git Hook: Post Checkout"
+
+if [ -z "${GITHUB_TOKEN}" ] || [ -z "${GITHUB_REPOSITORY}" ]; then
+  echo "Exercise Monitor: Error: GITHUB_TOKEN or GITHUB_REPOSITORY is not set, skipping post-checkout hook" >> "$LOG_FILE"
+  exit 0
+fi
 
 # Get checkout information
 PREVIOUS_HEAD=$1
@@ -9,7 +16,7 @@ BRANCH_NAME=$(git branch --show-current)
 REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
 
 # Send repository dispatch event
-curl -X POST \
+HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
   -H "Accept: application/vnd.github.v3+json" \
   -H "Authorization: token ${GITHUB_TOKEN}" \
   "https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches" \
@@ -22,4 +29,10 @@ curl -X POST \
       "repository_name": "'"$REPO_NAME"'",
       "timestamp": "'"$(date -u +"%Y-%m-%dT%H:%M:%SZ")"'"
     }
-  }' 2>/dev/null || echo "Failed to send repository dispatch event"
+  }' 2>>"$LOG_FILE")
+
+if [ $? -ne 0 ]; then
+  echo "Exercise Monitor: Error: curl failed for post-checkout dispatch" >> "$LOG_FILE"
+elif [ "$HTTP_STATUS" -ge 400 ] 2>/dev/null; then
+  echo "Exercise Monitor: Error: post-checkout dispatch returned HTTP $HTTP_STATUS" >> "$LOG_FILE"
+fi

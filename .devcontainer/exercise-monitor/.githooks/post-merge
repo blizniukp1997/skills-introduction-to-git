@@ -9,9 +9,9 @@ LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
 MERGE_AUTHOR=$(git log -1 --pretty="%an <%ae>")
 REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
 
-BRANCH_COMMIT_COUNT=$(git rev-list --count HEAD)
-BRANCH_COMMIT_MESSAGES=$(git log --pretty=format:'%h%x1f%s' | jq -R -s -c 'split("\n") | map(select(length > 0)) | map(split("\u001f") | {id: .[0], message: .[1]})')
-# echo "Total commits on branch '${DEFAULT_BRANCH}': ${BRANCH_COMMIT_COUNT}"
+# Collect branch commit count and messages via shared utility
+MONITOR_DIR="/home/vscode/.vscode-remote/data/Machine/exercise-monitor"
+eval "$("$MONITOR_DIR/collect-branch-info.sh")"
 
 # Build JSON payload
 PAYLOAD=$(jq -n \
@@ -38,9 +38,4 @@ PAYLOAD=$(jq -n \
     }
   }')
 
-# Send repository dispatch event
-curl -X POST \
-  -H "Accept: application/vnd.github.v3+json" \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  "https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches" \
-  -d "$PAYLOAD" 2>/dev/null || echo "Failed to send repository dispatch event"
+"$MONITOR_DIR/send-dispatch.sh" "post-merge" "$PAYLOAD"

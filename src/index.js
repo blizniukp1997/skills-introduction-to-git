@@ -124,23 +124,35 @@ function draw() {
   }
 }
 
-// Draw a single block
-function drawBlock(context, x, y, colorCode) {
+// Draw a single block at a given size
+function drawScaledBlock(context, x, y, colorCode, size) {
   context.fillStyle = COLORS[colorCode];
-  context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+  context.fillRect(x * size, y * size, size, size);
   context.strokeStyle = "#1e1e1e";
-  context.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+  context.strokeRect(x * size, y * size, size, size);
+}
+
+// Draw a single block at the default BLOCK_SIZE
+function drawBlock(context, x, y, colorCode) {
+  drawScaledBlock(context, x, y, colorCode, BLOCK_SIZE);
+}
+
+// Iterate over non-empty cells in a piece, invoking callback(row, col, value)
+function forEachPieceCell(piece, callback) {
+  for (let row = 0; row < piece.length; row++) {
+    for (let col = 0; col < piece[row].length; col++) {
+      if (piece[row][col]) {
+        callback(row, col, piece[row][col]);
+      }
+    }
+  }
 }
 
 // Draw current piece
 function drawPiece(context, piece, offsetX, offsetY) {
-  for (let row = 0; row < piece.length; row++) {
-    for (let col = 0; col < piece[row].length; col++) {
-      if (piece[row][col]) {
-        drawBlock(context, offsetX + col, offsetY + row, piece[row][col]);
-      }
-    }
-  }
+  forEachPieceCell(piece, (row, col, value) => {
+    drawBlock(context, offsetX + col, offsetY + row, value);
+  });
 }
 
 // Spawn new piece
@@ -157,23 +169,25 @@ function spawnPiece() {
 
 // Check collision
 function checkCollision(piece, x, y) {
-  for (let row = 0; row < piece.length; row++) {
-    for (let col = 0; col < piece[row].length; col++) {
-      if (piece[row][col]) {
-        const newX = x + col;
-        const newY = y + row;
+  let collided = false;
+  forEachPieceCell(piece, (row, col) => {
+    const newX = x + col;
+    const newY = y + row;
 
-        if (newX < 0 || newX >= COLS || newY >= ROWS) {
-          return true;
-        }
-
-        if (newY >= 0 && board[newY][newX]) {
-          return true;
-        }
-      }
+    if (newX < 0 || newX >= COLS || newY >= ROWS) {
+      collided = true;
+    } else if (newY >= 0 && board[newY][newX]) {
+      collided = true;
     }
-  }
-  return false;
+  });
+  return collided;
+}
+
+// Lock the current piece, check for pattern matches, and spawn the next piece
+function placePiece() {
+  lockPiece();
+  checkPatternMatch();
+  spawnPiece();
 }
 
 // Move piece down
@@ -181,25 +195,19 @@ function moveDown() {
   if (!checkCollision(currentPiece, currentX, currentY + 1)) {
     currentY++;
   } else {
-    lockPiece();
-    checkPatternMatch();
-    spawnPiece();
+    placePiece();
   }
 }
 
 // Lock piece to board
 function lockPiece() {
-  for (let row = 0; row < currentPiece.length; row++) {
-    for (let col = 0; col < currentPiece[row].length; col++) {
-      if (currentPiece[row][col]) {
-        const boardY = currentY + row;
-        const boardX = currentX + col;
-        if (boardY >= 0) {
-          board[boardY][boardX] = currentPiece[row][col];
-        }
-      }
+  forEachPieceCell(currentPiece, (row, col, value) => {
+    const boardY = currentY + row;
+    const boardX = currentX + col;
+    if (boardY >= 0) {
+      board[boardY][boardX] = value;
     }
-  }
+  });
 }
 
 // Rotate piece
@@ -230,9 +238,7 @@ function hardDrop() {
   while (!checkCollision(currentPiece, currentX, currentY + 1)) {
     currentY++;
   }
-  lockPiece();
-  checkPatternMatch();
-  spawnPiece();
+  placePiece();
 }
 
 // Set new target pattern
@@ -242,7 +248,7 @@ function setNewTargetPattern() {
   document.getElementById("patternName").textContent = targetPattern.name;
 }
 
-// Draw target pattern
+// Draw target pattern (reuses drawBlock via a scaled wrapper)
 function drawTargetPattern() {
   if (!targetPattern) return;
 
@@ -253,10 +259,7 @@ function drawTargetPattern() {
   for (let row = 0; row < PATTERN_SIZE; row++) {
     for (let col = 0; col < PATTERN_SIZE; col++) {
       if (targetPattern.pattern[row][col]) {
-        patternCtx.fillStyle = "#f48771";
-        patternCtx.fillRect(col * blockSize, row * blockSize, blockSize, blockSize);
-        patternCtx.strokeStyle = "#3e3e42";
-        patternCtx.strokeRect(col * blockSize, row * blockSize, blockSize, blockSize);
+        drawScaledBlock(patternCtx, col, row, 1, blockSize);
       }
     }
   }

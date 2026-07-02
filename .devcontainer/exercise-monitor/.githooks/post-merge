@@ -1,17 +1,23 @@
 #!/bin/bash
 
+LOG_FILE="/workspaces/exercise-monitor.log"
+
 echo "Git Hook: Post Merge"
 
+if [ -z "${GITHUB_TOKEN}" ] || [ -z "${GITHUB_REPOSITORY}" ]; then
+  echo "Exercise Monitor: Error: GITHUB_TOKEN or GITHUB_REPOSITORY is not set, skipping post-merge hook" >> "$LOG_FILE"
+  exit 0
+fi
+
 # Get merge information
-CURRENT_HEAD=$(git rev-parse HEAD)
+CURRENT_HEAD=$(git rev-parse HEAD) || { echo "Exercise Monitor: Error: failed to get HEAD for post-merge" >> "$LOG_FILE"; exit 0; }
 BRANCH_NAME=$(git branch --show-current)
-LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-MERGE_AUTHOR=$(git log -1 --pretty="%an <%ae>")
+LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B) || { echo "Exercise Monitor: Error: failed to get commit message for post-merge" >> "$LOG_FILE"; exit 0; }
+MERGE_AUTHOR=$(git log -1 --pretty="%an <%ae>") || { echo "Exercise Monitor: Error: failed to get merge author" >> "$LOG_FILE"; exit 0; }
 REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
 
-BRANCH_COMMIT_COUNT=$(git rev-list --count HEAD)
-BRANCH_COMMIT_MESSAGES=$(git log --pretty=format:'%h%x1f%s' | jq -R -s -c 'split("\n") | map(select(length > 0)) | map(split("\u001f") | {id: .[0], message: .[1]})')
-# echo "Total commits on branch '${DEFAULT_BRANCH}': ${BRANCH_COMMIT_COUNT}"
+BRANCH_COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+BRANCH_COMMIT_MESSAGES=$(git log --pretty=format:'%h%x1f%s' | jq -R -s -c 'split("\n") | map(select(length > 0)) | map(split("\u001f") | {id: .[0], message: .[1]})' 2>/dev/null || echo "[]")
 
 # Build JSON payload
 PAYLOAD=$(jq -n \
@@ -38,9 +44,20 @@ PAYLOAD=$(jq -n \
     }
   }')
 
+if [ $? -ne 0 ] || [ -z "$PAYLOAD" ]; then
+  echo "Exercise Monitor: Error: failed to build JSON payload for post-merge" >> "$LOG_FILE"
+  exit 0
+fi
+
 # Send repository dispatch event
-curl -X POST \
+HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
   -H "Accept: application/vnd.github.v3+json" \
   -H "Authorization: token ${GITHUB_TOKEN}" \
   "https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches" \
-  -d "$PAYLOAD" 2>/dev/null || echo "Failed to send repository dispatch event"
+  -d "$PAYLOAD" 2>>"$LOG_FILE")
+
+if [ $? -ne 0 ]; then
+  echo "Exercise Monitor: Error: curl failed for post-merge dispatch" >> "$LOG_FILE"
+elif [ "$HTTP_STATUS" -ge 400 ] 2>/dev/null; then
+  echo "Exercise Monitor: Error: post-merge dispatch returned HTTP $HTTP_STATUS" >> "$LOG_FILE"
+fi

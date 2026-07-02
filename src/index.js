@@ -48,9 +48,26 @@ let targetPattern = null;
 // Initialize game
 function init() {
   canvas = document.getElementById("gameCanvas");
+  if (!canvas) {
+    console.error("Game canvas element not found");
+    return;
+  }
   ctx = canvas.getContext("2d");
+  if (!ctx) {
+    console.error("Failed to get 2D context from game canvas");
+    return;
+  }
+
   patternCanvas = document.getElementById("patternCanvas");
+  if (!patternCanvas) {
+    console.error("Pattern canvas element not found");
+    return;
+  }
   patternCtx = patternCanvas.getContext("2d");
+  if (!patternCtx) {
+    console.error("Failed to get 2D context from pattern canvas");
+    return;
+  }
 
   // Initialize empty board
   board = Array(ROWS)
@@ -126,7 +143,7 @@ function draw() {
 
 // Draw a single block
 function drawBlock(context, x, y, colorCode) {
-  context.fillStyle = COLORS[colorCode];
+  context.fillStyle = COLORS[colorCode] || COLORS[0];
   context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
   context.strokeStyle = "#1e1e1e";
   context.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
@@ -237,9 +254,16 @@ function hardDrop() {
 
 // Set new target pattern
 function setNewTargetPattern() {
+  if (typeof ERROR_PATTERNS === "undefined" || !Array.isArray(ERROR_PATTERNS) || ERROR_PATTERNS.length === 0) {
+    console.error("ERROR_PATTERNS is not defined or empty");
+    return;
+  }
   targetPattern = ERROR_PATTERNS[Math.floor(Math.random() * ERROR_PATTERNS.length)];
   drawTargetPattern();
-  document.getElementById("patternName").textContent = targetPattern.name;
+  var patternNameEl = document.getElementById("patternName");
+  if (patternNameEl) {
+    patternNameEl.textContent = targetPattern.name;
+  }
 }
 
 // Draw target pattern
@@ -306,7 +330,10 @@ function clearPattern(startRow, startCol) {
 
 // Update score display
 function updateScore() {
-  document.getElementById("score").textContent = score;
+  var scoreEl = document.getElementById("score");
+  if (scoreEl) {
+    scoreEl.textContent = score;
+  }
 }
 
 // Handle keyboard input
@@ -345,14 +372,23 @@ function handleKeyPress(e) {
 // Toggle pause
 function togglePause() {
   isPaused = !isPaused;
-  document.getElementById("status").textContent = isPaused ? "Paused" : "Playing...";
+  var statusEl = document.getElementById("status");
+  if (statusEl) {
+    statusEl.textContent = isPaused ? "Paused" : "Playing...";
+  }
 }
 
 // End game
 function endGame() {
   gameOver = true;
-  document.getElementById("finalScore").textContent = score;
-  document.getElementById("gameOver").classList.add("show");
+  var finalScoreEl = document.getElementById("finalScore");
+  if (finalScoreEl) {
+    finalScoreEl.textContent = score;
+  }
+  var gameOverEl = document.getElementById("gameOver");
+  if (gameOverEl) {
+    gameOverEl.classList.add("show");
+  }
 }
 
 // Start the game when page loads
